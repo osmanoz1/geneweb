@@ -45,3 +45,4 @@ script:
     opam depext $DEPS ;
     opam install $DEPS ;
     if [[ "$TRAVIS_OS_NAME" == "freebsd" ]]; then gmake ci ; else make ci ; fi ;
+    zip geneweb-$TRAVIS_OS_NAME.zip distribution
