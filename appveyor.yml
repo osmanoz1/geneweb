@@ -27,7 +27,7 @@
       - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
         CYG_ROOT: C:/cygwin64
         PKG_NAME: win64
-        OPAM_PACKAGES: 'benchmark camlp5 cppo dune.1.11.4 jingoo markup num ocaml ounit stdlib-shims unidecode.0.2.0 uucp uutf zarith'
+        OPAM_PACKAGES: 'benchmark camlp5 cppo dune.1.11.4 jingoo markup num ocaml ounit stdlib-shims unidecode.0.2.0 uucp uunf uutf zarith'
       - APPVEYOR_BUILD_WORKER_IMAGE: Ubuntu1604
         PACKAGE_UPDATE: 'sudo apt-get update'
         PACKAGE_INSTALLER: 'sudo apt-get install -qq'
@@ -42,6 +42,7 @@
 
   install:
     # windows environnement
+    - cmd: 'choco install -y innosetup'
     - cmd: 'set OPAMYES=1'
     - cmd: 'set PATH=%PATH%;%CYG_ROOT%\usr\x86_64-w64-mingw32\sys-root\mingw\bin'
     - cmd: '%CYG_ROOT%\setup-x86_64.exe -qnNdO -R %CYG_ROOT% -s http://cygwin.mirror.constant.com -l %CYG_ROOT%/var/cache/setup -P rsync -P patch -P diffutils -P unzip -P m4 -P mingw64-x86_64-gcc-core -P mingw64-x86_64-gmp'
@@ -77,7 +78,9 @@
     - sh : 'ocaml ./configure.ml --sosa-legacy && make clean distrib'
     - sh : 'zip -r geneweb-$PKG_NAME.zip distribution/*'
     - cmd: '%CYG_BASH% "cd ${APPVEYOR_BUILD_FOLDER} && ocaml ./configure.ml --sosa-legacy && make clean distrib"'
-    - cmd: 7z a geneweb-%PKG_NAME%.zip %APPVEYOR_BUILD_FOLDER%\distribution
+    - cmd: 'iscc geneweb.iss'
+    - cmd: 7z a geneweb-%PKG_NAME%.zip %APPVEYOR_BUILD_FOLDER%\distribution\geneweb-install.exe
+
 
   artifacts:
     - path: geneweb-%PKG_NAME%.zip
@@ -91,6 +94,6 @@
     provider: GitHub
     auth_token:
       secure: SeKOGhnICJvaDizFLOLbds/4bYK3WSZJmL6jVVL4a52zefGDIyqhVc07OxvXMaz9
-    artifact: geneweb-%PKG_NAME%.zip
+    artifact: geneweb-%PKG_NAME%
     draft: true
     prerelease: false
