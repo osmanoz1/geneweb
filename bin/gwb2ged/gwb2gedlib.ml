@@ -69,25 +69,7 @@ let encode s =
 
 let max_len = 78
 
-let br = "<br>"
-let find_br s ini_i =
-  let ini = "<br" in
-  let rec loop i j =
-    if i = String.length ini then
-      let rec loop2 j =
-        if j = String.length s then br
-        else if s.[j] = '>' then String.sub s ini_i (j - ini_i + 1)
-        else loop2 (j + 1)
-      in
-      loop2 j
-    else if j = String.length s then br
-    else if String.unsafe_get ini i = String.unsafe_get s j then
-      loop (i + 1) (j + 1)
-    else br
-  in
-  loop 0 ini_i
-
-(** [display_note_aux oc tagn s len i] outputs text [s] with CONT/CONC
+(** [display_note oc tagn s] outputs text [s] with CONT/CONC
     tag. GEDCOM lines are limited to 255 characters. However, the
     CONCatenation or CONTinuation tags can be used to expand a field
     beyond this limit. Lines are cut and align with [max_len]
@@ -96,76 +78,31 @@ let find_br s ini_i =
     STANDARD 5.5, Appendix A CONC and CONT tag
     @param oc specifies output channel
     @param tagn specifies the current gedcom tag level (0, 1, ...)
-    @param s specifies text to print to the output channel (already
-    encode with gedcom charset)
-    @param len specifies the number of characters (char or wide char)
-    already printed
-    @param i specifies the last char index (index to s -- one byte
-    char) *)
-let rec display_note_aux oc tagn s len i =
-  (* FIXME: Rewrite this so we can get rid of this custom [nbc] *)
-  let nbc c =
-    if Char.code c < 0b10000000 then 1
-    else if Char.code c < 0b11000000 then -1
-    else if Char.code c < 0b11100000 then 2
-    else if Char.code c < 0b11110000 then 3
-    else if Char.code c < 0b11111000 then 4
-    else if Char.code c < 0b11111100 then 5
-    else if Char.code c < 0b11111110 then 6
-    else -1
-  in
-  let j = ref i in
-  (* read wide char (case charset UTF-8) or char (other charset) in s string*)
-  let rec output_onechar () =
-    if !j = String.length s then decr j
-    (* non wide char / UTF-8 char *)
-    else if !charset <> Utf8 then output_char oc s.[i]
-    (* 1 to 4 bytes UTF-8 wide char *)
-    else if i = !j || nbc s.[!j] = -1 then begin
-      output_char oc s.[!j];
-      incr j;
-      output_onechar ()
-    end
-    else decr j
-  in
-  if !j = String.length s then Printf.fprintf oc "\n"
-  else
-    (* \n, <br>, <br \> : cut text for CONTinuate with new gedcom line *)
-    let br = find_br s i in
-    if i <= String.length s - String.length br &&
-       String.lowercase_ascii (String.sub s i (String.length br)) = br
-    then
-      begin
-        Printf.fprintf oc "\n%d CONT " (succ tagn);
-        let i = i + String.length br in
-        let i = if i < String.length s && s.[i] = '\n' then i + 1 else i in
-        display_note_aux oc tagn s
-          (String.length (string_of_int (succ tagn) ^ " CONT ")) i
-      end
-    else if s.[i] = '\n' then
-      begin
-        Printf.fprintf oc "\n%d CONT " (succ tagn);
-        let i = if i < String.length s then i + 1 else i in
-        display_note_aux oc tagn s
-          (String.length (string_of_int (succ tagn) ^ " CONT ")) i
-      end
-    (* cut text at max length for CONCat with next gedcom line *)
-    else if len = max_len then
-      begin Printf.fprintf oc "\n%d CONC " (succ tagn);
-        display_note_aux
-          oc tagn s (String.length ((string_of_int (succ tagn)) ^ " CONC ")) i
-      end
-    (* continue same gedcom line *)
-    else
-      begin
-        output_onechar ();
-        display_note_aux oc tagn s (len + 1) (!j + 1)
-      end
-
+    @param s specifies text to print to the output channel
+*)
 let display_note oc tagn s =
   let tag = Printf.sprintf "%d NOTE " tagn in
   Printf.fprintf oc "%s" tag;
-  display_note_aux oc tagn (encode s) (String.length tag) 0
+  (* First, convert all <br> into \n *)
+  let s = Str.global_replace (Str.regexp "<br */?>") "\n" s in
+  let s = encode s in
+  let rec loop i j =
+    let k tag i =
+      let tag = string_of_int (succ tagn) ^ " " ^ tag ^ " " in
+      Printf.fprintf oc "\n%s" tag ;
+      loop i (String.length tag)
+    in
+    if i = String.length s then Printf.fprintf oc "\n"
+    else if s.[i] = '\n' then k "CONT" (i + 1)
+    else begin
+      let n = Utf8.nbc s.[i] in
+      if j + n > max_len then k "CONC" i
+      else begin
+        for i' = 0 to n - 1 do output_char oc (String.get s @@ i + i') done ;
+        loop (i + n) (j + n)
+      end
+    end
+  in loop 0 (String.length tag)
 
 let ged_header base oc ifile ofile =
   Printf.fprintf oc "0 HEAD\n";
