@@ -5,12 +5,16 @@
  (modules gwdb_driver)
 )
 
+(copy_files %{project_root}/bin/gwb2ged/gwb2gedlib.ml)
+
 (executable
   (name test)
   (libraries %%%WSERVER_PKG%%% %%%SOSA_PKG%%% dummy_gwdb geneweb oUnit stdlib-shims)
   (preprocess (pps ppx_deriving.show))
   (modules
+    gwb2gedlib
     test
+    test_gwb2ged
     test_place
     test_sosa
     test_utils

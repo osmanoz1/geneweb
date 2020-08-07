@@ -7,5 +7,6 @@ let _ =
     @ Test_sosa.suite
     @ Test_place.suite
     @ Test_wiki.suite
+    @ Test_gwb2ged.suite
   end
 
