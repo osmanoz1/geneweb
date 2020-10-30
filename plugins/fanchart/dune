@@ -1,0 +1,6 @@
+(executable
+  (name plugin_fanchart)
+  (libraries geneweb-lib geneweb-wserver gwdpluginlib)
+  (flags -linkall)
+  (modes (native plugin))
+)

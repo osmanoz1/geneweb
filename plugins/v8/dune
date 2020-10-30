@@ -1,0 +1,7 @@
+(executable
+  (name plugin_v8)
+  (libraries jingoo gwxjg geneweb-wserver gwdpluginlib)
+  (embed_in_plugin_libraries)
+  (flags -linkall)
+  (modes (native plugin))
+)

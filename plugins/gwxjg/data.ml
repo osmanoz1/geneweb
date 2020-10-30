@@ -105,7 +105,7 @@ and mk_fam_relation = function
   | Residence -> Tstr "RESIDENCE"
 
 and mk_fam_separation = function
-  | Divorced _ -> Tstr "DIVORCED"
+  | Divorced d -> Tset [ Tstr "DIVORCED" ; mk_opt mk_date (Adef.od_of_cdate d) ]
   | Separated -> Tstr "SEPARATED"
   | NotDivorced -> Tnull
 
@@ -1260,7 +1260,7 @@ let default_env conf base =
   :: ("encode_varenv", encode_varenv)
   :: ("alphabetic", alphabetic)
   :: ("json_encode", func_arg1_no_kw (fun x -> Tstr (json_encode x) ))
-  :: ("base", mk_base base)
+  :: ("BASE", mk_base base)
   :: ("conf", conf_env)
   :: ("LOG", log)
   :: ("CAST", module_CAST)

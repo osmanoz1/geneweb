@@ -1,0 +1,45 @@
+{%- macro print_GET (env, except=null) -%}
+  {%- for (k, v) in env -%}
+    {%- if k != except -%}{{ k }}={{ v }}&{%- endif -%}
+  {%- endfor -%}
+{%- endmacro -%}
+
+{%- macro GET (except = []) -%}
+  {%- for (k, v) in conf.henv %}{% if not (k in except) %}{{ k }}={{ v }}&{% endif %}{% endfor -%}
+  {%- for (k, v) in conf.senv %}{% if not (k in except) %}{{ k }}={{ v }}&{% endif %}{% endfor -%}
+  {%- for (k, v) in conf.env %}{% if not (k in except) %}{{ k }}={{ v }}&{% endif %}{% endfor -%}
+{%- endmacro -%}
+
+{%- macro print_hidden_textarea (env) -%}
+  {%- for (k, v) in env -%}
+    <textarea style="display:none;" name="{{ k }}">{{ decode_varenv (v) }}</textarea>
+  {%- endfor -%}
+{%- endmacro -%}
+
+{%- macro columns (s, m, l, xl) -%}
+  col-sm-{{ s }} col-md-{{ m }} col-lg-{{ l }}
+  {%- if xl != null %} col-xl-{{xl}}{% endif  -%}
+{%- endmacro columns -%}
+
+{%- macro inputCheckbox (class="", checked=false, name, label) -%}
+  <div class="form-check {{ class }}">
+    <input class="form-check-input" id="{{ name }}" name="{{ name }}" type="checkbox" {% if checked %}checked="checked"{% endif %}>
+    <label class="form-check-label" for="{{ name }}">{{ label }}</label>
+  </div>
+{%- endmacro inputCheckbox -%}
+
+{%- macro inputRadio (name, value, label, checked) -%}
+  <div class="form-check form-check-inline">
+    <input class="form-check-input" type="radio" id="{{ name }}" name="{{ name }}" value="{{ value }}"
+           {% if checked %}checked{% endif %}>
+    <label class="form-check-label" for="{{ name }}">
+      {{ label|capitalize }}
+    </label>
+  </div>
+{%- endmacro inputRadio -%}
+
+{%- macro option (value, cond, label) -%}
+  <option value="{{ value }}"{% if cond %} selected="selected"{% endif %}>
+    {%--%}{{ label }}{%--%}
+  </option>
+{%- endmacro option -%}

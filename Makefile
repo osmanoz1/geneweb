@@ -103,6 +103,7 @@ GENERATED_FILES_DEP = \
 	lib/dune \
 	lib/gwdb-legacy-x-arangodb/dune \
 	lib/util/dune \
+	plugins/gwxjg/dune \
 	test/dune \
 	dune-workspace \
 
@@ -184,6 +185,18 @@ distrib: exe
 	cp bin/setup/lang/lexicon.txt $(DISTRIB_DIR)/gw/setup/lang/
 	cp bin/setup/lang/intro.txt $(DISTRIB_DIR)/gw/setup/lang/
 	cp -R hd/* $(DISTRIB_DIR)/gw/
+	mkdir $(DISTRIB_DIR)/gw/plugins
+	mkdir $(DISTRIB_DIR)/gw/plugins/re
+	cp $(BUILD_DIR)/plugins/re/plugin_re.cmxs $(DISTRIB_DIR)/gw/plugins/re/
+	mkdir $(DISTRIB_DIR)/gw/plugins/jingoo
+	cp $(BUILD_DIR)/plugins/jingoo/plugin_jingoo.cmxs $(DISTRIB_DIR)/gw/plugins/jingoo/
+	mkdir $(DISTRIB_DIR)/gw/plugins/gwxjg
+	cp $(BUILD_DIR)/plugins/gwxjg/plugin_gwxjg.cmxs $(DISTRIB_DIR)/gw/plugins/gwxjg/
+	mkdir $(DISTRIB_DIR)/gw/plugins/export
+	cp $(BUILD_DIR)/plugins/export/plugin_export.cmxs $(DISTRIB_DIR)/gw/plugins/export/
+	mkdir $(DISTRIB_DIR)/gw/plugins/v8
+	cp $(BUILD_DIR)/plugins/v8/plugin_v8.cmxs $(DISTRIB_DIR)/gw/plugins/v8/
+	cp -R $(BUILD_DIR)/plugins/v8/assets/ $(DISTRIB_DIR)/gw/plugins/v8/
 
 .PHONY: install uninstall distrib
 

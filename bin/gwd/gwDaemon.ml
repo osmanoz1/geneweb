@@ -12,30 +12,31 @@ module Make
   : (sig val run : ?speclist:(string * Arg.spec * string) list -> unit -> unit end)
 = struct
 
-let green_color = "#2f6400"
-let selected_addr = ref None
-let selected_port = ref 2317
-let redirected_addr = ref None
-let wizard_passwd = ref ""
-let friend_passwd = ref ""
-let wizard_just_friend = ref false
-let only_addresses = ref []
-let default_lang = ref "fr"
-let setup_link = ref false
+let auth_file = ref ""
 let choose_browser_lang = ref false
+let conn_timeout = ref 120
+let daemon = ref false
+let default_lang = ref "fr"
+let friend_passwd = ref ""
+let green_color = "#2f6400"
 let images_dir = ref ""
 let images_url = ref ""
-let max_clients = ref None
-let robot_xcl = ref None
-let auth_file = ref ""
-let daemon = ref false
+let lexicon_list = ref []
 let login_timeout = ref 1800
-let conn_timeout = ref 120
+let max_clients = ref None
+let no_host_address = ref false
+let only_addresses = ref []
+let plugins = ref []
+let redirected_addr = ref None
+let robot_xcl = ref None
+let selected_addr = ref None
+let selected_port = ref 2317
+let setup_link = ref false
 let trace_failed_passwd = ref false
 let trace_templates = ref false
 let use_auth_digest_scheme = ref false
-let no_host_address = ref false
-let lexicon_list = ref []
+let wizard_just_friend = ref false
+let wizard_passwd = ref ""
 
 #ifdef API
 let selected_api_host = ref "127.0.0.1"
@@ -205,9 +206,18 @@ let input_lexicon lang =
   ht
 
 let add_lexicon fname lang ht =
-  let fname = Filename.concat "lang" fname in
-  Mutil.input_lexicon lang ht
-    (fun () -> Secure.open_in (Util.search_in_lang_path fname))
+  Mutil.input_lexicon lang ht (fun () -> Secure.open_in fname)
+
+let register_plugin plugin =
+  let dir = (Filename.dirname plugin) in
+  print_endline @@ "Loading: " ^ dir ^ "... " ;
+  let assets = Filename.concat dir "assets" in
+  print_endline @@ "Assets: " ^ assets ;
+  GwdPlugin.assets := assets ;
+  if Sys.file_exists dir then Secure.add_lang_path assets ;
+  Dynlink.loadfile plugin ;
+  print_endline @@ "Done!" ;
+  GwdPlugin.assets := ""
 
 let alias_lang lang =
   if String.length lang < 2 then lang
@@ -1125,11 +1135,24 @@ let make_conf from_addr request script_name env =
       if x = "" then !default_lang else x
     with Not_found -> !default_lang
   in
-  let lexicon = input_lexicon (if lang = "" then default_lang else lang) in
-  List.iter
-    (fun fname ->
-       add_lexicon fname (if lang = "" then default_lang else lang) lexicon)
-    !lexicon_list;
+  let lexicon_lang = if lang = "" then default_lang else lang in
+  let lexicon = input_lexicon lexicon_lang in
+  List.iter begin fun plugin ->
+    let dir = (Filename.dirname plugin) in
+    let lex_dir = Filename.concat (Filename.concat dir "assets") "lex" in
+    if Sys.file_exists lex_dir then
+      let lex = Sys.readdir lex_dir in
+      Array.sort compare lex ;
+      Array.iter begin fun f ->
+        let f = Filename.concat lex_dir f in
+        if not (Sys.is_directory f) then lexicon_list := f :: !lexicon_list
+      end lex
+  end !plugins ;
+  let rec rev_iter fn = function
+    | [] -> ()
+    | hd :: tl -> rev_iter fn tl ; fn hd
+  in
+  rev_iter (fun fname -> add_lexicon fname lexicon_lang lexicon) !lexicon_list ;
   (* A l'initialisation de la config, il n'y a pas de sosa_ref. *)
   (* Il sera mis à jour par effet de bord dans request.ml       *)
   let default_sosa_ref = Gwdb.dummy_iper, None in
@@ -1495,7 +1518,7 @@ let content_misc len misc_fname =
   Wserver.http Wserver.OK;
   let (fname, t) =
     match misc_fname with
-      Css fname -> fname, "text/css"
+    | Css fname -> fname, "text/css"
     | Js fname -> fname, "text/javascript"
     | Otf fname -> fname, "application/font-otf"
     | Svg fname -> fname, "application/font-svg"
@@ -1505,12 +1528,27 @@ let content_misc len misc_fname =
     | Woff2 fname -> fname, "application/font-woff2"
     | Other fname -> fname, "text/plain"
   in
+  print_endline @@ __LOC__ ^ ": " ^ fname ;
   Wserver.header "Content-type: %s" t;
   Wserver.header "Content-length: %d" len;
   Wserver.header "Content-disposition: inline; filename=%s"
     (Filename.basename fname);
   Wserver.header "Cache-control: private, max-age=%d" (60 * 60 * 24 * 365);
   Wserver.wflush ()
+
+let find_misc_file name =
+  if Sys.file_exists name
+  && List.exists (fun p -> Mutil.start_with (Filename.concat (Filename.dirname p) "assets") 0 name) !plugins
+  then (print_endline@@ __LOC__ ^ ": " ^  name ; name)
+  else
+    let name' = Filename.concat (base_path ["etc"] "") name in
+    print_endline@@ __LOC__ ^ ": " ^  name' ;
+    if Sys.file_exists name' then name'
+    else
+      let name' = search_in_lang_path @@ Filename.concat "etc" name in
+      print_endline@@ __LOC__ ^ ": " ^  name' ;
+      if Sys.file_exists name' then name'
+      else ""
 
 let print_misc_file misc_fname =
   match misc_fname with
@@ -1536,7 +1574,8 @@ let print_misc_file misc_fname =
   | Other _ -> false
 
 let misc_request fname =
-  let fname = Util.find_misc_file fname in
+  print_endline @@ __LOC__ ^ fname ;
+  let fname = find_misc_file fname in
   if fname <> "" then
     let misc_fname =
       if Filename.check_suffix fname ".css" then Css fname
@@ -1873,6 +1912,59 @@ let main ~speclist () =
       Print the full path to template files as html comment ") ::
     ("-nolock", Arg.Set Lock.no_lock_flag,
      "\n       Do not lock files before writing.") ::
+    ( "-plugin"
+    , Arg.String begin fun s ->
+        assert (Plugins_md5.allowed s) ;
+        plugins := !plugins @ [s]
+      end
+    , " missing doc"
+    ) ::
+    ( "-plugins"
+    , Arg.String begin fun s ->
+        print_endline __LOC__ ;
+        let ps =
+          Array.fold_left begin fun acc s' ->
+            let dir = Filename.concat s s' in
+            if Sys.is_directory dir
+            then Filename.concat dir ("plugin_" ^ s' ^ ".cmxs") :: acc
+            else acc
+          end [] (Sys.readdir s)
+        in
+        print_endline __LOC__ ;
+        let deps_ht = Hashtbl.create 0 in
+        print_endline __LOC__ ;
+        let deps =
+          List.map begin fun p ->
+            print_endline p ;
+            assert (Plugins_md5.allowed p) ;
+            let pname =
+              let p = Filename.basename p in
+              String.sub p 7 (String.length p - 12)
+            in
+            Hashtbl.add deps_ht pname p ;
+            let dir = Filename.dirname p in
+            let f = Filename.concat dir "deps" in
+            if Sys.file_exists f
+            then
+              let ic = open_in f in
+              let deps = String.split_on_char ',' (input_line ic) in
+              close_in ic ;
+              (pname, deps)
+            else (pname, [])
+          end ps
+        in
+        print_endline __LOC__ ;
+        begin match Dep.sort deps with
+          | Dep.ErrorCycle _ -> assert false
+          | Dep.Sorted deps ->
+            List.iter print_endline deps ;
+            print_endline __LOC__ ;
+            plugins := !plugins @ List.map (Hashtbl.find deps_ht) deps
+        end
+      end
+    , " missing doc"
+    ) ::
+
     (if Sys.unix then
        ( "-max_clients"
        , Arg.Int (fun x -> max_clients := Some x)
@@ -1952,6 +2044,7 @@ let main ~speclist () =
   arg_parse_in_file (chop_extension Sys.argv.(0) ^ ".arg") speclist anonfun
     usage;
   Arg.parse speclist anonfun usage;
+  List.iter register_plugin !plugins ;
   if !images_dir <> "" then
     begin let abs_dir =
       let f =

@@ -96,21 +96,33 @@
   (libraries geneweb geneweb-gwb2ged-lib geneweb-gwu-lib str unix %%%GWDB_PKG%%% %%%SOSA_PKG%%% %%%WSERVER_PKG%%%)
 )
 
+(rule
+  (target plugins_md5.ml)
+  (deps
+    %{project_root}/plugins/export/plugin_export.cmxs
+    %{project_root}/plugins/fanchart/plugin_fanchart.cmxs
+    %{project_root}/plugins/gwxjg/plugin_gwxjg.cmxs
+    %{project_root}/plugins/jingoo/plugin_jingoo.cmxs
+    %{project_root}/plugins/re/plugin_re.cmxs
+    %{project_root}/plugins/v8/plugin_v8.cmxs
+  )
+  (action (with-stdout-to %{target} (run ocaml ./mk_plugins_md5.ml %{deps})))
+)
+
 (library
-  (name gwdlib)
-  (public_name geneweb-gwd-lib)
-  (wrapped true)
-  (libraries geneweb geneweb-jingoo jingoo unix str %%%GWDB_PKG%%% %%%SOSA_PKG%%% %%%WSERVER_PKG%%%)
-  (preprocess (action (run %{bin:cppo} %%%CPPO_D%%% %{input-file})))
-  (modules gwDaemon jgInterp request requestHandler)
+  (name gwdpluginlib)
+  (wrapped false)
+  (libraries geneweb-lib %%%GWDB_PKG%%% %%%SOSA_PKG%%% %%%WSERVER_PKG%%%)
+  (modules gwdPlugin)
 )
 
 (executable
   (package geneweb-bin)
   (public_name gwd)
-  (libraries geneweb geneweb-jingoo geneweb-gwb2ged-lib geneweb-gwd-lib geneweb-gwu-lib unix str %%%GWDB_PKG%%% %%%SOSA_PKG%%% %%%WSERVER_PKG%%%)
+  (flags -linkall)
+  (libraries dynlink geneweb-lib gwdpluginlib unix str %%%GWDB_PKG%%% %%%SOSA_PKG%%% %%%WSERVER_PKG%%%)
   (preprocess (action (run %{bin:cppo} %%%CPPO_D%%% %{input-file})))
-  (modules gwd)
+  (modules dep gwd gwDaemon plugins_md5 request requestHandler)
 )
 
 (executables
