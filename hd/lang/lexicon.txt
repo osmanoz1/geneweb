@@ -96,7 +96,7 @@ ru: чтобы увидеть первую ветку
 sk: aby ste videli prvú vetvu
 sl: za prikaz prve veje
 sv: den första grenen
-tr: İlk satır
+tr: ilk satır
 
     to see the first branch
 af: om die eerste staak te sien
